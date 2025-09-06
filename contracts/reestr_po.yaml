@@ -1,0 +1,107 @@
+source_name: reestr_po
+owner: min-digital
+description: "Единый реестр российского ПО (Минцифры)"
+frequency: monthly
+endpoint_type: html_scraping
+endpoint: "https://reestr.digital.gov.ru"
+auth: none
+alternative_endpoints:
+  - type: json_api
+    url: "https://data.apicrafter.ru/api/reestr-po"
+    description: "Альтернативный API-каталог"
+
+# Схема данных
+schema:
+  - name: solution_code
+    type: string
+    required: true
+    description: "Код решения в реестре"
+    example: "RU-2024-123456"
+  - name: solution_name
+    type: string
+    required: true
+    description: "Наименование решения"
+  - name: vendor_inn
+    type: string
+    required: true
+    description: "ИНН правообладателя"
+    validation: "10 или 12 цифр"
+  - name: vendor_ogrn
+    type: string
+    required: false
+    description: "ОГРН правообладателя"
+  - name: vendor_name
+    type: string
+    required: true
+    description: "Наименование правообладателя"
+  - name: is_domestic
+    type: boolean
+    required: true
+    description: "Статус отечественного ПО"
+  - name: register_decision_date
+    type: date
+    required: true
+    description: "Дата решения о включении в реестр"
+  - name: class_scm
+    type: string
+    required: false
+    description: "Класс SCM (WMS/TMS/S&OP/APS/OMS/Procurement)"
+    values: ["WMS", "TMS", "S&OP", "APS", "OMS", "Procurement", "Other"]
+  - name: updated_at
+    type: timestamp
+    required: true
+    description: "Время последнего обновления записи"
+
+# Правила качества данных
+dq_rules:
+  - unique: [solution_code]
+  - not_null: [solution_code, solution_name, vendor_inn, is_domestic, register_decision_date]
+  - range:
+      field: register_decision_date
+      min: "2015-01-01"
+      max: "now"
+  - format:
+      field: vendor_inn
+      pattern: "^[0-9]{10}$|^[0-9]{12}$"
+  - values_in_set:
+      field: is_domestic
+      value_set: [true, false]
+
+# SLA и мониторинг
+sla:
+  availability: 0.97
+  freshness_hours: 72
+  max_response_time_seconds: 30
+
+# Метрики для мониторинга
+metrics:
+  - name: domestic_share
+    formula: "SUM(is_domestic::int) / COUNT(*) * 100"
+    description: "Доля отечественного ПО (%)"
+  - name: solutions_count
+    formula: "COUNT(DISTINCT solution_code)"
+    description: "Общее количество решений"
+  - name: vendors_count
+    formula: "COUNT(DISTINCT vendor_inn)"
+    description: "Количество вендоров"
+
+# Контактная информация
+contact:
+  owner: "Минцифры России"
+  email: "reestr@digital.gov.ru"
+  phone: "+7 (495) 123-45-67"
+  documentation_url: "https://reestr.digital.gov.ru/docs"
+
+# Технические детали парсинга
+parsing:
+  method: "html_scraping"
+  selector: "table.registry-table tbody tr"
+  pagination:
+    type: "next_page_link"
+    selector: "a.next-page"
+  data_extraction:
+    solution_code: "td:nth-child(1)"
+    solution_name: "td:nth-child(2)"
+    vendor_name: "td:nth-child(3)"
+    register_decision_date: "td:nth-child(4)"
+    is_domestic: "td:nth-child(5) input[checked]"

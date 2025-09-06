@@ -1,0 +1,126 @@
+source_name: gisp_support
+owner: minpromtorg
+description: "Меры промышленной поддержки (ГИСП/Минпромторг)"
+frequency: monthly
+endpoint_type: document_parsing
+endpoint: "https://gisp.gov.ru"
+auth: none
+alternative_endpoints:
+  - type: pdf_download
+    url: "https://gisp.gov.ru/documents/subsidies.pdf"
+    description: "PDF документы с решениями о субсидиях"
+
+# Схема данных
+schema:
+  - name: support_id
+    type: string
+    required: true
+    description: "Идентификатор меры поддержки"
+  - name: program_code
+    type: string
+    required: true
+    description: "Код программы поддержки"
+  - name: measure_type
+    type: string
+    required: true
+    description: "Тип меры поддержки"
+    values: ["subsidy", "grant", "tax_benefit", "state_order", "other"]
+  - name: recipient_inn
+    type: string
+    required: true
+    description: "ИНН получателя поддержки"
+    validation: "10 или 12 цифр"
+  - name: amount_rub
+    type: decimal
+    required: true
+    description: "Размер поддержки в рублях"
+  - name: approval_date
+    type: date
+    required: true
+    description: "Дата одобрения"
+  - name: disbursement_date
+    type: date
+    required: false
+    description: "Дата перечисления средств"
+  - name: conditions
+    type: string
+    required: false
+    description: "Условия предоставления поддержки"
+  - name: kpi_planned
+    type: decimal
+    required: false
+    description: "Плановый KPI"
+  - name: kpi_actual
+    type: decimal
+    required: false
+    description: "Фактический KPI"
+  - name: region_code
+    type: string
+    required: true
+    description: "Код региона получателя"
+  - name: is_scm_related
+    type: boolean
+    required: true
+    description: "Относится ли к SCM-решениям"
+  - name: updated_at
+    type: timestamp
+    required: true
+    description: "Время последнего обновления"
+
+# Правила качества данных
+dq_rules:
+  - unique: [support_id]
+  - not_null: [support_id, program_code, measure_type, recipient_inn, amount_rub, approval_date]
+  - range:
+      field: amount_rub
+      min: 0
+      max: 10000000000  # 10 млрд рублей
+  - range:
+      field: approval_date
+      min: "2015-01-01"
+      max: "now"
+  - format:
+      field: recipient_inn
+      pattern: "^[0-9]{10}$|^[0-9]{12}$"
+
+# SLA и мониторинг
+sla:
+  availability: 0.85
+  freshness_hours: 168  # неделя
+  max_response_time_seconds: 120
+
+# Метрики для мониторинга
+metrics:
+  - name: total_support_amount
+    formula: "SUM(amount_rub)"
+    description: "Общий объем поддержки (руб.)"
+  - name: scm_support_share
+    formula: "SUM(CASE WHEN is_scm_related THEN amount_rub ELSE 0 END) / SUM(amount_rub) * 100"
+    description: "Доля поддержки SCM (%)"
+  - name: support_coverage
+    formula: "COUNT(DISTINCT recipient_inn)"
+    description: "Количество получателей поддержки"
+
+# Контактная информация
+contact:
+  owner: "Минпромторг России"
+  email: "info@gisp.gov.ru"
+  phone: "+7 (495) 539-21-00"
+  documentation_url: "https://gisp.gov.ru/docs"
+
+# Технические детали парсинга документов
+parsing:
+  method: "document_parsing"
+  document_types:
+    - "pdf"
+    - "docx"
+  extraction_rules:
+    - pattern: "Программа: (.*)"
+      field: "program_code"
+    - pattern: "Получатель ИНН: (\\d{10,12})"
+      field: "recipient_inn"
+    - pattern: "Сумма: (\\d+(?:\\.\\d+)?) руб"
+      field: "amount_rub"
+    - pattern: "Дата одобрения: (\\d{2}\\.\\d{2}\\.\\d{4})"
+      field: "approval_date"
+      format: "%d.%m.%Y"

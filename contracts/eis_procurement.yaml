@@ -1,0 +1,137 @@
+source_name: eis_procurement
+owner: min-finance
+description: "Госзакупки (ЕИС 44-ФЗ/223-ФЗ)"
+frequency: daily
+endpoint_type: csv_download
+endpoint: "https://zakupki.gov.ru/opendata"
+auth: none
+alternative_endpoints:
+  - type: json_api
+    url: "https://ofdata.ru/api/procurement"
+    description: "Публичный API агрегатор данных ЕИС"
+
+# Схема данных
+schema:
+  - name: notice_id
+    type: string
+    required: true
+    description: "Идентификатор извещения"
+  - name: contract_id
+    type: string
+    required: false
+    description: "Идентификатор контракта"
+  - name: customer_inn
+    type: string
+    required: true
+    description: "ИНН заказчика"
+    validation: "10 или 12 цифр"
+  - name: supplier_inn
+    type: string
+    required: false
+    description: "ИНН поставщика"
+    validation: "10 или 12 цифр"
+  - name: okpd2
+    type: string
+    required: true
+    description: "Код ОКПД2 предмета закупки"
+  - name: okved2
+    type: string
+    required: false
+    description: "Код ОКВЭД2 поставщика"
+  - name: sum_rub
+    type: decimal
+    required: true
+    description: "Сумма контракта в рублях"
+  - name: region_code
+    type: string
+    required: true
+    description: "Код региона (ОКТМО)"
+  - name: publish_date
+    type: date
+    required: true
+    description: "Дата публикации извещения"
+  - name: contract_date
+    type: date
+    required: false
+    description: "Дата заключения контракта"
+  - name: subject
+    type: string
+    required: true
+    description: "Предмет закупки"
+  - name: procurement_type
+    type: string
+    required: true
+    description: "Тип закупки (44-ФЗ/223-ФЗ)"
+    values: ["44-FZ", "223-FZ"]
+  - name: is_scm_related
+    type: boolean
+    required: true
+    description: "Относится ли к SCM-решениям"
+  - name: updated_at
+    type: timestamp
+    required: true
+    description: "Время последнего обновления"
+
+# Правила качества данных
+dq_rules:
+  - unique: [notice_id]
+  - not_null: [notice_id, customer_inn, okpd2, sum_rub, region_code, publish_date, subject]
+  - range:
+      field: sum_rub
+      min: 0
+      max: 1000000000000  # 1 трлн рублей
+  - range:
+      field: publish_date
+      min: "2015-01-01"
+      max: "now"
+  - format:
+      field: customer_inn
+      pattern: "^[0-9]{10}$|^[0-9]{12}$"
+  - format:
+      field: okpd2
+      pattern: "^[0-9]{2}\\.[0-9]{2}\\.[0-9]{2}\\.[0-9]{3}$"
+
+# SLA и мониторинг
+sla:
+  availability: 0.95
+  freshness_hours: 24
+  max_response_time_seconds: 60
+
+# Метрики для мониторинга
+metrics:
+  - name: procurement_volume
+    formula: "SUM(sum_rub)"
+    description: "Общий объем закупок (руб.)"
+  - name: scm_procurement_share
+    formula: "SUM(CASE WHEN is_scm_related THEN sum_rub ELSE 0 END) / SUM(sum_rub) * 100"
+    description: "Доля SCM-закупок (%)"
+  - name: contracts_count
+    formula: "COUNT(DISTINCT contract_id)"
+    description: "Количество контрактов"
+
+# Контактная информация
+contact:
+  owner: "Минфин России"
+  email: "opendata@zakupki.gov.ru"
+  phone: "+7 (495) 987-65-43"
+  documentation_url: "https://zakupki.gov.ru/opendata/docs"
+
+# Технические детали загрузки
+parsing:
+  method: "csv_download"
+  file_patterns:
+    - "contracts_*.csv"
+    - "notices_*.csv"
+  encoding: "utf-8"
+  delimiter: ","
+  quote_char: "\""
+  data_mapping:
+    notice_id: "noticeId"
+    contract_id: "contractId"
+    customer_inn: "customerInn"
+    supplier_inn: "supplierInn"
+    okpd2: "okpd2"
+    sum_rub: "sum"
+    region_code: "regionCode"
+    publish_date: "publishDate"
+    subject: "subject"
