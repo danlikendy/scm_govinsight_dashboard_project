@@ -56,7 +56,7 @@ streamlit run local_app.py --server.port 8501
 
 ```bash
 # Клонирование репозитория
-git clone <repository-url>
+git clone https://github.com/danlikendy/scm_govinsight_dashboard_project
 cd scm_govinsight_dashboard_project
 
 # Запуск всех сервисов
