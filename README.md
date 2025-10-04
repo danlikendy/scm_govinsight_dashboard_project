@@ -21,14 +21,11 @@
 ## Структура проекта
 
 ```
-/infra          # Docker Compose, K8s манифесты, мониторинг
-/airflow        # DAG'и, operators, тесты
-/etl            # Коннекторы, трансформации, реестры
-/sql            # DDL/DML: core, marts, индексы
-/streamlit      # UI-страницы, компоненты
-/ml             # DID/PSM/SCM ноутбуки и пайплайны
-/docs           # SLA, метрики, дата-контракты
-/contracts      # Дата-контракты источников
+/local_app.py   # Основное приложение Streamlit
+/data_sources.py # Коннекторы для парсинга данных
+/requirements.txt # Python зависимости
+/run_app.sh     # Скрипт запуска
+/.streamlit/    # Конфигурация Streamlit
 ```
 
 ## Быстрый старт
@@ -52,41 +49,9 @@ streamlit run local_app.py --server.port 8501
 
 **Доступ:** http://localhost:8501
 
-### 2. Запуск с Docker (полная версия)
-
-```bash
-# Клонирование репозитория
-git clone <repository-url>
-cd scm_govinsight_dashboard_project
-
-# Запуск всех сервисов
-cd infra
-docker-compose up -d
-
-# Проверка статуса
-docker-compose ps
-```
-
-### 3. Доступ к сервисам
+### 2. Доступ к приложению
 
 - **Streamlit Dashboard**: http://localhost:8501
-- **Airflow UI**: http://localhost:8080 (admin/admin)
-- **Grafana**: http://localhost:3000 (admin/admin123)
-- **Prometheus**: http://localhost:9090
-
-### 3. Инициализация данных
-
-```bash
-# Выполнение миграций БД
-docker exec -i infra_postgres_1 psql -U scm_user scm_dashboard < sql/01_create_schemas.sql
-docker exec -i infra_postgres_1 psql -U scm_user scm_dashboard < sql/02_create_dimensions.sql
-docker exec -i infra_postgres_1 psql -U scm_user scm_dashboard < sql/03_create_facts.sql
-docker exec -i infra_postgres_1 psql -U scm_user scm_dashboard < sql/04_create_marts.sql
-
-# Запуск ETL процессов
-docker exec infra_airflow-webserver_1 airflow dags unpause ingest_sources
-docker exec infra_airflow-webserver_1 airflow dags unpause staging_normalize
-```
 
 ## KPI и метрики
 
@@ -138,85 +103,20 @@ docker exec infra_airflow-webserver_1 airflow dags unpause staging_normalize
 
 ```bash
 # Python зависимости
-pip install -r streamlit/requirements.txt
-
-# Дополнительные зависимости для ML
-pip install -r ml/requirements.txt
+pip install -r requirements.txt
 ```
 
 ### Запуск в режиме разработки
 
 ```bash
 # Streamlit
-cd streamlit
-streamlit run app.py
-
-# Airflow (локально)
-cd airflow
-airflow webserver --port 8080
-airflow scheduler
+streamlit run local_app.py --server.port 8501
 ```
-
-### Тестирование
-
-```bash
-# Тесты качества данных
-python etl/dq_tests.py
-
-# Каузальный анализ
-python ml/causal_analysis.py
-```
-
-## Документация
-
-- [Руководство по развёртыванию](docs/DEPLOYMENT.md)
-- [API Документация](docs/API.md)
-- [Дата-контракты](contracts/)
-- [SQL схемы](sql/)
-
-## Технические детали
-
-### ETL Контур
-```
-RAW → STAGING → CORE → MART
- ↓       ↓       ↓      ↓
-MinIO  Normalize 3NF   Star Schema
-```
-
-### Качество данных
-- **Great Expectations** для валидации
-- **DQ-правила**: уникальность, диапазоны, референциальная целостность
-- **Алерты** в Slack/Email при нарушениях
-
-### Безопасность
-- **RBAC**: роли viewer, analyst, data_steward, admin
-- **RLS**: ограничения по регионам/ведомствам
-- **Аудит**: журналирование доступа и выгрузок
-
-## Мониторинг
-
-- **Grafana**: дашборды производительности
-- **Prometheus**: метрики системы
-- **Airflow**: статус DAG'ов и задач
-- **Great Expectations**: отчёты качества данных
-
-## Вклад в проект
-
-1. Fork репозитория
-2. Создайте feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit изменения (`git commit -m 'Add amazing feature'`)
-4. Push в branch (`git push origin feature/amazing-feature`)
-5. Откройте Pull Request
-
-## Лицензия
-
-MIT License - см. [LICENSE](LICENSE) файл
 
 ## Поддержка
 
-- **Документация**: `/docs/`
+- **Документация**: README.md
 - **Issues**: GitHub Issues
-- **Контакты**: support@example.com
 
 ---
 

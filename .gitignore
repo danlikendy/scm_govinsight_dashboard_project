@@ -133,7 +133,7 @@ data/
 logs/
 *.log
 *.sqlite
-*.db
+scm_dashboard.db
 
 # Airflow
 airflow/logs/
